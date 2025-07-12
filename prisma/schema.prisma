@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = "mongodb+srv://slokpankaj7777:slok%407125@cluster1.lxh23dx.mongodb.net/rewear"
+}
+
+model User {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  name     String
+  email    String   @unique
+  password String
+  location String
+  points   Int      @default(0)
+  joinDate DateTime @default(now())
+  
+  // Relations
+  items    Item[]
+  sentRequests     SwapRequest[] @relation("UserRequests")
+  receivedRequests SwapRequest[] @relation("UserReceivedRequests")
+
+  @@map("users")
+}
+
+model Item {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  category    String
+  condition   String
+  imageUrl    String
+  status      String   @default("available")
+  userId      String   @db.ObjectId
+  listedAt    DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User         @relation(fields: [userId], references: [id])
+  requests    SwapRequest[] @relation("ItemRequests")
+
+  @@map("items")
+}
+
+model SwapRequest {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  itemId      String   @db.ObjectId
+  fromUserId  String   @db.ObjectId
+  toUserId    String   @db.ObjectId
+  status      String   @default("pending")
+  requestedAt DateTime @default(now())
+  
+  // Relations
+  item        Item     @relation("ItemRequests", fields: [itemId], references: [id])
+  fromUser    User     @relation("UserRequests", fields: [fromUserId], references: [id])
+  toUser      User     @relation("UserReceivedRequests", fields: [toUserId], references: [id])
+
+  @@map("swap_requests")
+}
