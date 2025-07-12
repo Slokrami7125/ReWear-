@@ -3,6 +3,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const cloudinary = require('./utils/cloudinary');
 require('dotenv').config();
 
@@ -10,8 +11,19 @@ require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// Configure Multer for file uploads
-const storage = multer.memoryStorage();
+// Configure Multer with Cloudinary storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'rewear-images',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [
+      { width: 800, height: 800, crop: 'limit' }, // Resize for optimization
+      { quality: 'auto' } // Auto-optimize quality
+    ]
+  },
+});
+
 const upload = multer({
   storage: storage,
   limits: {
@@ -197,7 +209,7 @@ app.post('/api/auth/login', async (req, res) => {
 // Image Upload Routes
 
 // POST /api/upload
-app.post('/api/upload', upload.single('image'), async (req, res) => {
+app.post('/api/upload', upload.single('image'), (req, res) => {
   try {
     // Check if file was uploaded
     if (!req.file) {
@@ -207,33 +219,19 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
       });
     }
 
-    // Convert buffer to base64 for Cloudinary
-    const b64 = Buffer.from(req.file.buffer).toString('base64');
-    const dataURI = `data:${req.file.mimetype};base64,${b64}`;
-
-    // Upload to Cloudinary
-    const result = await cloudinary.uploader.upload(dataURI, {
-      folder: 'rewear-images',
-      resource_type: 'image',
-      transformation: [
-        { width: 800, height: 800, crop: 'limit' }, // Resize for optimization
-        { quality: 'auto' } // Auto-optimize quality
-      ]
-    });
-
     res.status(200).json({
       success: true,
       message: 'Image uploaded successfully',
       data: {
-        imageUrl: result.secure_url,
-        publicId: result.public_id
+        imageUrl: req.file.path,
+        publicId: req.file.filename
       }
     });
 
   } catch (error) {
     console.error('Upload error:', error);
     
-    // Handle specific Cloudinary errors
+    // Handle specific Multer errors
     if (error.message === 'Only image files are allowed!') {
       return res.status(400).json({
         success: false,
